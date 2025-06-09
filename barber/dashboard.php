@@ -5,32 +5,18 @@ require_once __DIR__ . '/../models/Appointment.php';
 
 requireRole('barbero');
 
+// Procesar confirmación de servicio
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['appointment_id'])) {
+    require_once __DIR__ . '/../controllers/AppointmentController.php';
+    $appointmentController = new AppointmentController();
+    $appointmentController->updateStatus();
+}
+
 $appointment = new Appointment();
 $today = date('Y-m-d');
 $todayAppointments = $appointment->getByBarber($_SESSION['user_id'], $today);
 $allAppointments = $appointment->getByBarber($_SESSION['user_id']);
 
-$statusColors = [
-    'scheduled' => 'bg-yellow-100 text-yellow-800',
-    'completed' => 'bg-green-100 text-green-800',
-    'cancelled' => 'bg-red-100 text-red-800',
-    'no_show' => 'bg-gray-100 text-gray-800'
-];
-
-$statusTexts = [
-    'scheduled' => 'Agendada',
-    'completed' => 'Completada',
-    'cancelled' => 'Cancelada',
-    'no_show' => 'No asistió'
-];
-
-
-// Procesar actualización de estado
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    require_once __DIR__ . '/../controllers/AppointmentController.php';
-    $appointmentController = new AppointmentController();
-    $appointmentController->updateStatus();
-}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -51,6 +37,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <h1 class="text-xl font-bold text-gray-900"><?php echo SITE_NAME; ?> - Panel Barbero</h1>
                 </div>
                 <div class="flex items-center space-x-4">
+                    <a href="payments.php" class="text-blue-600 hover:text-blue-800">
+                        <i class="fas fa-money-bill-wave mr-1"></i>Mis Pagos
+                    </a>
                     <span class="text-gray-700">Bienvenido, <?php echo $_SESSION['full_name']; ?></span>
                     <a href="../logout.php" class="text-red-600 hover:text-red-800">
                         <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
@@ -208,14 +197,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <?php if ($apt['status'] == 'scheduled'): ?>
                                                 <form method="POST" class="inline-block">
-                                                    <input type="hidden" name="appointment_id" value="<?php echo $apt['id']; ?>">
-                                                    <button type="submit" name="status" value="completed" 
-                                                            class="text-green-600 hover:text-green-900 mr-2">
-                                                        <i class="fas fa-check"></i> Completar
-                                                    </button>
-                                                    <button type="submit" name="status" value="no_show" 
-                                                            class="text-red-600 hover:text-red-900">
-                                                        <i class="fas fa-times"></i> No asistió
+                                                    <button type="submit" name="appointment_id" value="<?php echo $apt['id']; ?>"
+                                                            class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700"
+                                                            onclick="return confirm('¿Confirmar que el servicio fue realizado? Esto generará la comisión.')">
+                                                        <i class="fas fa-check"></i> Confirmar Servicio
                                                     </button>
                                                 </form>
                                             <?php else: ?>

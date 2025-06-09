@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../models/Appointment.php';
 require_once __DIR__ . '/../models/Service.php';
 require_once __DIR__ . '/../models/User.php';
+require_once __DIR__ . '/../config/Database.php';
 
 class AppointmentController {
     private $appointment;
@@ -51,6 +52,54 @@ class AppointmentController {
 
     public function updateStatus() {
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+            // Si viene del botón de confirmar servicio
+            if (isset($_POST['appointment_id']) && !isset($_POST['status'])) {
+                $appointment_id = $_POST['appointment_id'];
+                
+                $database = new Database();
+                $conn = $database->getConnection();
+                
+                // Primero obtener los datos de la cita y el servicio para calcular la comisión
+                $query = "SELECT a.*, s.price, s.commission_percentage 
+                          FROM appointments a 
+                          JOIN services s ON a.service_id = s.id 
+                          WHERE a.id = :appointment_id";
+                $stmt = $conn->prepare($query);
+                $stmt->bindParam(':appointment_id', $appointment_id);
+                $stmt->execute();
+                $appointmentData = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($appointmentData) {
+                    // Calcular la comisión correcta
+                    $commission_amount = ($appointmentData['price'] * $appointmentData['commission_percentage']) / 100;
+                    
+                    // Actualizar la cita con el estado completado y la comisión calculada
+                    $query = "UPDATE appointments 
+                              SET status = 'completed', 
+                                  confirmed_at = NOW(), 
+                                  confirmed_by = :confirmed_by,
+                                  commission_amount = :commission_amount
+                              WHERE id = :appointment_id";
+                    
+                    $stmt = $conn->prepare($query);
+                    $stmt->bindParam(':confirmed_by', $_SESSION['user_id']);
+                    $stmt->bindParam(':commission_amount', $commission_amount);
+                    $stmt->bindParam(':appointment_id', $appointment_id);
+                    
+                    if ($stmt->execute()) {
+                        $_SESSION['success'] = 'Servicio confirmado exitosamente. Comisión de $' . number_format($commission_amount, 2) . ' (' . $appointmentData['commission_percentage'] . '%) disponible para pago.';
+                    } else {
+                        $_SESSION['error'] = 'Error al confirmar el servicio';
+                    }
+                } else {
+                    $_SESSION['error'] = 'No se encontró la cita';
+                }
+                
+                header('Location: ' . ($_SESSION['role'] == 'barbero' ? '../barber/dashboard.php' : '../admin/appointments.php'));
+                exit();
+            }
+            
+            // Lógica original para otros cambios de estado
             $appointment_id = $_POST['appointment_id'];
             $status = $_POST['status'];
 
@@ -62,9 +111,9 @@ class AppointmentController {
 
             // Redirigir según el rol
             if ($_SESSION['role'] == 'barbero') {
-                header('Location: barber/dashboard.php');
+                header('Location: ../barber/dashboard.php');
             } else {
-                header('Location: admin/appointments.php');
+                header('Location: ../admin/appointments.php');
             }
         }
     }

@@ -102,6 +102,9 @@ $recentAppointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <a href="reports.php" class="text-gray-300 hover:text-white px-3 py-4 text-sm font-medium">
                     <i class="fas fa-chart-bar mr-2"></i>Reportes
                 </a>
+                <a href="payments.php" class="text-gray-300 hover:text-white px-3 py-4 text-sm font-medium">
+                    <i class="fas fa-money-bill-wave mr-2"></i>Pagos
+                </a>
             </div>
         </div>
     </nav>
@@ -195,6 +198,10 @@ $recentAppointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <i class="fas fa-chart-line text-2xl mb-2"></i>
                         <div class="font-semibold">Generar Reporte</div>
                     </a>
+                    <a href="payments.php" class="bg-indigo-600 text-white p-4 rounded-lg hover:bg-indigo-700 transition duration-200 text-center">
+                        <i class="fas fa-money-bill-wave text-2xl mb-2"></i>
+                        <div class="font-semibold">Gestionar Pagos</div>
+                    </a>
                 </div>
             </div>
         </div>
@@ -276,3 +283,4 @@ $recentAppointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 </body>
 </html>
+
