@@ -8,40 +8,32 @@ requireRole('admin');
 $user = new User();
 $action = $_GET['action'] ?? 'list';
 
+$database = new Database();
+$conn = $database->getConnection();
+
 // Procesar formularios
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    if ($action == 'create') {
+    if ($action == 'edit' && isset($_POST['id'])) {
+        // Actualizar usuario
+        $user->id = $_POST['id'];
         $user->username = trim($_POST['username']);
         $user->email = trim($_POST['email']);
-        $user->password = trim($_POST['password']);
         $user->first_name = trim($_POST['first_name']);
         $user->last_name = trim($_POST['last_name']);
         $user->phone = trim($_POST['phone']);
         $user->role_id = intval($_POST['role_id']);
+        $user->is_active = isset($_POST['is_active']) ? 1 : 0;
 
-        // Validaciones
-        if ($user->emailExists($user->email)) {
-            $_SESSION['error'] = 'El email ya está registrado';
-        } elseif ($user->usernameExists($user->username)) {
-            $_SESSION['error'] = 'El nombre de usuario ya está en uso';
-        } elseif ($user->register()) {
-            $_SESSION['success'] = 'Usuario creado exitosamente';
-            header('Location: users.php');
-            exit();
+        if ($user->update()) {
+            $_SESSION['success'] = 'Usuario actualizado exitosamente';
         } else {
-            $_SESSION['error'] = 'Error al crear el usuario';
+            $_SESSION['error'] = 'Error al actualizar el usuario';
         }
     }
 }
 
 // Obtener usuarios
-$database = new Database();
-$conn = $database->getConnection();
-
-$query = "SELECT u.*, r.name as role_name 
-          FROM users u 
-          JOIN roles r ON u.role_id = r.id 
-          ORDER BY u.created_at DESC";
+$query = "SELECT u.*, r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id ORDER BY u.created_at DESC";
 $stmt = $conn->prepare($query);
 $stmt->execute();
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -52,6 +44,7 @@ $stmt = $conn->prepare($query);
 $stmt->execute();
 $roles = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -62,7 +55,6 @@ $roles = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-50">
-    <!-- Header -->
     <header class="bg-white shadow">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center py-6">
@@ -83,31 +75,7 @@ $roles = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </header>
 
-    <!-- Navigation -->
-    <nav class="bg-gray-800">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex space-x-8">
-                <a href="dashboard.php" class="text-gray-300 hover:text-white px-3 py-4 text-sm font-medium">
-                    <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
-                </a>
-                <a href="users.php" class="text-white px-3 py-4 text-sm font-medium border-b-2 border-blue-500">
-                    <i class="fas fa-users mr-2"></i>Usuarios
-                </a>
-                <a href="services.php" class="text-gray-300 hover:text-white px-3 py-4 text-sm font-medium">
-                    <i class="fas fa-cut mr-2"></i>Servicios
-                </a>
-                <a href="appointments.php" class="text-gray-300 hover:text-white px-3 py-4 text-sm font-medium">
-                    <i class="fas fa-calendar mr-2"></i>Citas
-                </a>
-                <a href="reports.php" class="text-gray-300 hover:text-white px-3 py-4 text-sm font-medium">
-                    <i class="fas fa-chart-bar mr-2"></i>Reportes
-                </a>
-            </div>
-        </div>
-    </nav>
-
     <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <!-- Mensajes -->
         <?php if (isset($_SESSION['success'])): ?>
             <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
                 <?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
@@ -120,64 +88,58 @@ $roles = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </div>
         <?php endif; ?>
 
-        <?php if ($action == 'create'): ?>
-            <!-- Formulario de Crear Usuario -->
+        <?php if ($action == 'edit' && isset($_GET['id'])): ?>
+            <?php
+            // Obtener datos del usuario para editar
+            $stmt = $conn->prepare("SELECT * FROM users WHERE id = :id");
+            $stmt->execute(['id' => $_GET['id']]);
+            $userData = $stmt->fetch(PDO::FETCH_ASSOC);
+            ?>
             <div class="bg-white overflow-hidden shadow rounded-lg">
                 <div class="px-4 py-5 sm:p-6">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Crear Nuevo Usuario</h3>
-                    
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Editar Usuario</h3>
                     <form method="POST" class="space-y-6">
+                        <input type="hidden" name="id" value="<?php echo $userData['id']; ?>">
+
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label for="first_name" class="block text-sm font-medium text-gray-700">
-                                    Nombre *
-                                </label>
-                                <input id="first_name" name="first_name" type="text" required 
+                                <label for="first_name" class="block text-sm font-medium text-gray-700">Nombre *</label>
+                                <input id="first_name" name="first_name" type="text" value="<?php echo htmlspecialchars($userData['first_name']); ?>" required
                                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                             </div>
 
                             <div>
-                                <label for="last_name" class="block text-sm font-medium text-gray-700">
-                                    Apellido *
-                                </label>
-                                <input id="last_name" name="last_name" type="text" required 
+                                <label for="last_name" class="block text-sm font-medium text-gray-700">Apellido *</label>
+                                <input id="last_name" name="last_name" type="text" value="<?php echo htmlspecialchars($userData['last_name']); ?>" required
                                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                             </div>
                         </div>
 
                         <div>
-                            <label for="username" class="block text-sm font-medium text-gray-700">
-                                Nombre de Usuario *
-                            </label>
-                            <input id="username" name="username" type="text" required 
+                            <label for="username" class="block text-sm font-medium text-gray-700">Nombre de Usuario *</label>
+                            <input id="username" name="username" type="text" value="<?php echo htmlspecialchars($userData['username']); ?>" required
                                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
 
                         <div>
-                            <label for="email" class="block text-sm font-medium text-gray-700">
-                                Email *
-                            </label>
-                            <input id="email" name="email" type="email" required 
+                            <label for="email" class="block text-sm font-medium text-gray-700">Email *</label>
+                            <input id="email" name="email" type="email" value="<?php echo htmlspecialchars($userData['email']); ?>" required
                                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
 
                         <div>
-                            <label for="phone" class="block text-sm font-medium text-gray-700">
-                                Teléfono
-                            </label>
-                            <input id="phone" name="phone" type="tel" 
+                            <label for="phone" class="block text-sm font-medium text-gray-700">Teléfono</label>
+                            <input id="phone" name="phone" type="tel" value="<?php echo htmlspecialchars($userData['phone']); ?>"
                                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
 
                         <div>
-                            <label for="role_id" class="block text-sm font-medium text-gray-700">
-                                Rol *
-                            </label>
-                            <select id="role_id" name="role_id" required 
+                            <label for="role_id" class="block text-sm font-medium text-gray-700">Rol *</label>
+                            <select id="role_id" name="role_id" required
                                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">Seleccione un rol</option>
                                 <?php foreach ($roles as $role): ?>
-                                    <option value="<?php echo $role['id']; ?>" <?php echo ($_GET['role'] ?? '') == $role['name'] ? 'selected' : ''; ?>>
+                                    <option value="<?php echo $role['id']; ?>" <?php echo $role['id'] == $userData['role_id'] ? 'selected' : ''; ?>>
                                         <?php echo ucfirst($role['name']); ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -185,34 +147,26 @@ $roles = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         </div>
 
                         <div>
-                            <label for="password" class="block text-sm font-medium text-gray-700">
-                                Contraseña *
+                            <label for="is_active" class="inline-flex items-center">
+                                <input id="is_active" name="is_active" type="checkbox" <?php echo $userData['is_active'] ? 'checked' : ''; ?>
+                                       class="form-checkbox h-5 w-5 text-blue-600 transition duration-150 ease-in-out">
+                                <span class="ml-2 text-sm text-gray-700">Activo</span>
                             </label>
-                            <input id="password" name="password" type="password" required 
-                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                         </div>
 
                         <div class="flex justify-between">
-                            <a href="users.php" class="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">
-                                Cancelar
-                            </a>
-                            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
-                                Crear Usuario
-                            </button>
+                            <a href="users.php" class="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400">Cancelar</a>
+                            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Actualizar Usuario</button>
                         </div>
                     </form>
                 </div>
             </div>
         <?php else: ?>
-            <!-- Lista de Usuarios -->
             <div class="bg-white overflow-hidden shadow rounded-lg">
                 <div class="px-4 py-5 sm:p-6">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg leading-6 font-medium text-gray-900">Lista de Usuarios</h3>
                         <div class="space-x-2">
-                            <a href="users.php?action=create&role=barbero" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                                <i class="fas fa-user-plus mr-2"></i>Nuevo Barbero
-                            </a>
                             <a href="users.php?action=create" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
                                 <i class="fas fa-plus mr-2"></i>Nuevo Usuario
                             </a>
@@ -224,31 +178,24 @@ $roles = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuario</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th
+                                    ::contentReference[oaicite:4]{index=4}
+                                                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Registro</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <?php foreach ($users as $usr): ?>
                                     <tr>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="flex items-center">
-                                                <div class="flex-shrink-0 h-10 w-10">
-                                                    <div class="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                                                        <i class="fas fa-user text-gray-600"></i>
-                                                    </div>
-                                                </div>
-                                                <div class="ml-4">
-                                                    <div class="text-sm font-medium text-gray-900">
-                                                        <?php echo htmlspecialchars($usr['first_name'] . ' ' . $usr['last_name']); ?>
-                                                    </div>
-                                                    <div class="text-sm text-gray-500">
-                                                        <?php echo htmlspecialchars($usr['username']); ?>
-                                                    </div>
-                                                </div>
+                                            <div class="text-sm font-medium text-gray-900">
+                                                <?php echo htmlspecialchars($usr['first_name'] . ' ' . $usr['last_name']); ?>
+                                            </div>
+                                            <div class="text-sm text-gray-500">
+                                                <?php echo htmlspecialchars($usr['username']); ?>
                                             </div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -274,8 +221,10 @@ $roles = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                 <?php echo $usr['is_active'] ? 'Activo' : 'Inactivo'; ?>
                                             </span>
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            <?php echo date('d/m/Y', strtotime($usr['created_at'])); ?>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <a href="users.php?action=edit&id=<?php echo $usr['id']; ?>" class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600">
+                                                Editar
+                                            </a>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -288,3 +237,5 @@ $roles = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 </body>
 </html>
+
+ 

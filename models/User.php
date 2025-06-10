@@ -20,6 +20,40 @@ class User {
         $this->conn = $database->getConnection();
     }
 
+    public function findById($id) {
+        $conn = (new Database())->getConnection();
+        $stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+
+    public function update() {
+        $conn = (new Database())->getConnection();
+        $stmt = $conn->prepare("UPDATE users SET 
+            username = :username,
+            email = :email,
+            first_name = :first_name,
+            last_name = :last_name,
+            phone = :phone,
+            role_id = :role_id,
+            is_active = :is_active,
+            updated_at = NOW()
+            WHERE id = :id");
+
+        return $stmt->execute([
+            ':username' => $this->username,
+            ':email' => $this->email,
+            ':first_name' => $this->first_name,
+            ':last_name' => $this->last_name,
+            ':phone' => $this->phone,
+            ':role_id' => $this->role_id,
+            ':is_active' => $this->is_active,
+            ':id' => $this->id
+        ]);
+    }
+
+
     public function login($username, $password) {
         $query = "SELECT u.*, r.name as role_name 
                   FROM " . $this->table_name . " u 
@@ -100,4 +134,6 @@ class User {
         return $stmt->rowCount() > 0;
     }
 }
+
+    
 ?>
